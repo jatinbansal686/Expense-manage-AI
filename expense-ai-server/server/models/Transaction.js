@@ -20,6 +20,10 @@ const transactionSchema = new mongoose.Schema(
       type: String,
       default: "unknown",
     },
+    asset: {
+      type: String,
+      default: "",
+    },
     person: {
       type: String,
       default: "",

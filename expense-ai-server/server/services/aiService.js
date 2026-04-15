@@ -68,40 +68,44 @@ exports.processUserText = async (text) => {
   const prompt = `
 You are a financial assistant.
 
-Convert the user input into STRICT JSON.
+Convert input into STRICT JSON.
 
 Rules:
-- Only return JSON (no explanation)
+- Only JSON output
 - Detect intent: add, query, delete
-- Extract:
-  type: expense/income/investment
-  amount: number
-  person: string
-  category: string
-  date: ISO format if possible
-  startDate & endDate for queries
+
+Fields:
+- type: expense/income/investment
+- amount
+- person
+- asset (for investments like stocks, crypto, etc.)
+- category
+- date
+- startDate / endDate
+- limit (e.g. "last 5" → 5)
+- sort ("latest" → desc)
 
 Examples:
 
-Input: "aaj jatin ko 2000 diye"
+Input: "mene 5000 invest kiye vikran solar pe"
 Output:
 {
   "intent": "add",
-  "type": "expense",
-  "amount": 2000,
-  "person": "jatin",
-  "category": "unknown",
+  "type": "investment",
+  "amount": 5000,
+  "asset": "vikran solar",
+  "category": "investment",
   "date": "today"
 }
 
-Input: "5 january 2026 se 10 january 2026 ka hisab dikhao"
+Input: "meri last 5 investment dikhao"
 Output:
 {
   "intent": "query",
-  "startDate": "2026-01-05",
-  "endDate": "2026-01-10"
+  "type": "investment",
+  "limit": 5,
+  "sort": "desc"
 }
-
 Now process:
 "${text}"
 `;

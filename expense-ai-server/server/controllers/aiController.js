@@ -2,6 +2,7 @@ const { processUserText } = require("../services/aiService");
 const { parseJSON } = require("../services/parserService");
 const Transaction = require("../models/Transaction");
 const { normalizeDate, normalizeAmount } = require("../utils/normalizeData");
+const { getCategory } = require("../utils/categoryMapper");
 
 // MAIN AI HANDLER
 exports.handleAI = async (req, res) => {
@@ -18,18 +19,20 @@ exports.handleAI = async (req, res) => {
       return res.status(400).json({ message: "AI parsing failed" });
     }
 
-    console.log("AI DATE:", data.date);
-    const finalDate = normalizeDate(data.date);
-    console.log("NORMALIZED DATE:", finalDate);
-
     // Step 3: Handle Intent
     if (data.intent === "add") {
+      let finalCategory = data.category;
+      // if AI gives unknown → try mapping
+      if (!finalCategory || finalCategory === "unknown") {
+        finalCategory = getCategory(req.body.text);
+      }
       const transaction = await Transaction.create({
         user: req.user._id,
         type: data.type || "expense",
         amount: normalizeAmount(data.amount),
-        category: data.category || "unknown",
+        category: finalCategory,
         person: data.person || "",
+        asset: data.asset || "",
         date: normalizeDate(data.date),
       });
 
@@ -40,21 +43,43 @@ exports.handleAI = async (req, res) => {
     }
 
     if (data.intent === "query") {
-      const start = new Date(data.startDate);
-      const end = new Date(data.endDate);
+      let filter = { user: req.user._id };
 
-      const transactions = await Transaction.find({
-        user: req.user._id,
-        date: { $gte: start, $lte: end },
-      });
+      // filter by type
+      if (data.type) {
+        filter.type = data.type;
+      }
 
-      const total = transactions.reduce((sum, t) => sum + t.amount, 0);
+      // date range
+      if (data.startDate && data.endDate) {
+        filter.date = {
+          $gte: new Date(data.startDate),
+          $lte: new Date(data.endDate),
+        };
+      }
+
+      let query = Transaction.find(filter);
+
+      // sorting
+      if (data.sort === "desc") {
+        query = query.sort({ date: -1 });
+      }
+
+      // limit
+      if (data.limit) {
+        query = query.limit(data.limit);
+      }
+
+      const results = await query;
+
+      // total calculation
+      const total = results.reduce((sum, t) => sum + t.amount, 0);
 
       return res.json({
-        message: "Here is your report",
+        message: "Here is your data",
         total,
-        count: transactions.length,
-        transactions,
+        count: results.length,
+        data: results,
       });
     }
 
