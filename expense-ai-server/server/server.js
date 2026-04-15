@@ -15,13 +15,15 @@ app.use(express.json());
 // DB Connection
 connectDB();
 
-// Routes
-app.use((req, res, next) => {
-  console.log("Incoming Request:", req.method, req.url);
-  next();
-});
+//Testing Route
+// app.use((req, res, next) => {
+//   console.log("Incoming Request:", req.method, req.url);
+//   next();
+// });
 
+// Routes
 app.use("/api/auth", require("./routes/authRoutes"));
+app.use("/api/transactions", require("./routes/transactionRoutes"));
 
 const PORT = process.env.PORT || 5000;
 
