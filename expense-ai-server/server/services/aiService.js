@@ -73,6 +73,30 @@ Convert input into STRICT JSON.
 Rules:
 - Only JSON output
 - Detect intent: add, query, delete
+Detect time-based queries:
+
+- "this month", "iss mahine" → timeRange: "month"
+- "this week" → timeRange: "week"
+- "this year" → timeRange: "year"
+- "last 7 days" → lastDays: 7
+
+Examples:
+
+Input: "iss mahine kitna kharcha hua"
+Output:
+{
+  "intent": "query",
+  "type": "expense",
+  "timeRange": "month"
+}
+
+Input: "last 7 din ka expense batao"
+Output:
+{
+  "intent": "query",
+  "type": "expense",
+  "lastDays": 7
+}
 
 Fields:
 - type: expense/income/investment
@@ -106,6 +130,16 @@ Output:
   "limit": 5,
   "sort": "desc"
 }
+
+If user asks about:
+- balance
+- remaining money
+- total savings
+Return:
+{
+  "intent": "balance"
+}
+  
 Now process:
 "${text}"
 `;

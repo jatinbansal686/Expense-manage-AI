@@ -3,6 +3,7 @@ const { parseJSON } = require("../services/parserService");
 const Transaction = require("../models/Transaction");
 const { normalizeDate, normalizeAmount } = require("../utils/normalizeData");
 const { getCategory } = require("../utils/categoryMapper");
+const { getDateRange } = require("../utils/timeFilter");
 
 // MAIN AI HANDLER
 exports.handleAI = async (req, res) => {
@@ -45,12 +46,22 @@ exports.handleAI = async (req, res) => {
     if (data.intent === "query") {
       let filter = { user: req.user._id };
 
-      // filter by type
+      // type filter
       if (data.type) {
         filter.type = data.type;
       }
 
-      // date range
+      // time filter
+      const range = getDateRange(data);
+
+      if (range) {
+        filter.date = {
+          $gte: range.start,
+          $lte: range.end,
+        };
+      }
+
+      // custom range
       if (data.startDate && data.endDate) {
         filter.date = {
           $gte: new Date(data.startDate),
@@ -61,25 +72,67 @@ exports.handleAI = async (req, res) => {
       let query = Transaction.find(filter);
 
       // sorting
-      if (data.sort === "desc") {
-        query = query.sort({ date: -1 });
-      }
+      query = query.sort({ date: -1 });
 
-      // limit
       if (data.limit) {
         query = query.limit(data.limit);
       }
 
       const results = await query;
 
-      // total calculation
       const total = results.reduce((sum, t) => sum + t.amount, 0);
 
+      // 🔥 smart message
+      let message = "";
+
+      if (data.timeRange === "month") {
+        message = `Is mahine ka total ₹${total}`;
+      } else if (data.lastDays) {
+        message = `Last ${data.lastDays} din ka total ₹${total}`;
+      } else if (data.type === "investment") {
+        message = `Aapki ${results.length} investments mili. Total ₹${total}`;
+      } else {
+        message = `Total ₹${total}`;
+      }
+
       return res.json({
-        message: "Here is your data",
+        message,
         total,
         count: results.length,
         data: results,
+      });
+    }
+
+    if (data.intent === "balance") {
+      const transactions = await Transaction.find({ user: req.user._id });
+
+      let income = 0;
+      let expense = 0;
+      let investment = 0;
+
+      transactions.forEach((t) => {
+        if (t.type === "income") income += t.amount;
+        if (t.type === "expense") expense += t.amount;
+        if (t.type === "investment") investment += t.amount;
+      });
+
+      const balance = income - expense - investment;
+
+      // 🔥 smart response
+      const message = `
+Aapka total income ₹${income} hai,
+expense ₹${expense} hai,
+investment ₹${investment} hai.
+
+Aapka current balance ₹${balance} hai.
+`;
+
+      return res.json({
+        message,
+        income,
+        expense,
+        investment,
+        balance,
       });
     }
 
